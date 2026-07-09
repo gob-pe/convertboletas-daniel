@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consolidador Estructural de Planillas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="font-sans min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto main-card mt-8 md:mt-12 overflow-hidden">
+        <div class="p-6 md:p-8 min-h-[400px]">
+
+            <div id="alertBox" class="hidden mb-6 p-4 text-sm font-medium"></div>
+
+            <!-- Paso 1: Subida de archivo -->
+            <div id="step1" class="relative max-w-xl mx-auto my-12 rounded-2xl border flex flex-col items-center justify-center p-8 transition-all duration-300 group">
+                <!-- El input de archivo invisible que cubre la tarjeta en modo subida -->
+                <input type="file" id="fileInput" accept=".xlsx,.xlsm" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
+
+                <!-- 1. VISTA: CARGAR ARCHIVO (inicial) -->
+                <div id="uploadView" class="w-full flex flex-col items-center justify-center transition-all duration-500">
+                    <div class="relative w-64 h-48 mb-6 flex items-center justify-center select-none pointer-events-none">
+                        <!-- Pila de documentos de fondo -->
+                        <div class="absolute transform -rotate-12 translate-x-[-25px] translate-y-[10px] opacity-40 transition-transform duration-500 group-hover:translate-x-[-35px]">
+                            <svg class="w-24 h-32" viewBox="0 0 100 120" fill="none">
+                                <rect x="5" y="5" width="90" height="110" rx="8" class="bg-doc-back" />
+                                <line x1="20" y1="30" x2="80" y2="30" class="line-doc-back" stroke-width="3" stroke-linecap="round"/>
+                                <line x1="20" y1="50" x2="80" y2="50" class="line-doc-back" stroke-width="3" stroke-linecap="round"/>
+                                <line x1="20" y1="70" x2="60" y2="70" class="line-doc-back" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="absolute transform rotate-12 translate-x-[25px] translate-y-[10px] opacity-40 transition-transform duration-500 group-hover:translate-x-[35px]">
+                            <svg class="w-24 h-32" viewBox="0 0 100 120" fill="none">
+                                <rect x="5" y="5" width="90" height="110" rx="8" class="bg-doc-back" />
+                                <line x1="20" y1="30" x2="80" y2="30" class="line-doc-back" stroke-width="3" stroke-linecap="round"/>
+                                <line x1="20" y1="50" x2="80" y2="50" class="line-doc-back" stroke-width="3" stroke-linecap="round"/>
+                                <line x1="20" y1="70" x2="50" y2="70" class="line-doc-back" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <!-- Documento Excel Principal (Centro) -->
+                        <div class="absolute transform transition-transform duration-500 group-hover:scale-105 shadow-md rounded-xl">
+                            <svg class="w-28 h-36" viewBox="0 0 100 120" fill="none">
+                                <rect x="2" y="2" width="96" height="116" rx="8" class="bg-doc-main" />
+                                <path d="M 66,2 L 98,34 L 66,34 Z" class="corner-doc-main" />
+                                <!-- Cuadrícula / Spreadsheet lines -->
+                                <rect x="15" y="45" width="20" height="12" class="grid-doc-main" rx="2"/>
+                                <rect x="40" y="45" width="45" height="12" class="grid-doc-main" rx="2"/>
+                                <rect x="15" y="62" width="20" height="12" class="grid-doc-main" rx="2"/>
+                                <rect x="40" y="62" width="45" height="12" class="grid-doc-main" rx="2"/>
+                                <rect x="15" y="79" width="20" height="12" class="grid-doc-main" rx="2"/>
+                                <rect x="40" y="79" width="45" height="12" class="grid-doc-main" rx="2"/>
+                                <!-- Icono X verde de Excel -->
+                                <circle cx="50" cy="50" r="18" fill="#0d9488"/>
+                                <text x="50" y="57" fill="white" font-family="sans-serif" font-weight="900" font-size="20" text-anchor="middle">X</text>
+                            </svg>
+                        </div>
+                        
+                        <!-- Archivo Flotante CSV que se arrastra (Animado) -->
+                        <div class="absolute right-[-30px] top-[20px] animate-drag-hint pointer-events-none flex flex-col items-center">
+                            <div class="relative bg-white border border-slate-200 rounded-lg p-2 shadow-lg flex flex-col items-center">
+                                <svg class="w-10 h-12" viewBox="0 0 100 120" fill="none">
+                                    <rect x="2" y="2" width="96" height="116" rx="8" fill="white" stroke="#cbd5e1" stroke-width="2"/>
+                                    <path d="M 66,2 L 98,34 L 66,34 Z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="2"/>
+                                    <text x="50" y="80" fill="#64748b" font-family="sans-serif" font-weight="bold" font-size="24" text-anchor="middle">CSV</text>
+                                </svg>
+                                <!-- Tooltip azul -->
+                                <div class="absolute bottom-[-24px] bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow whitespace-nowrap">
+                                    Export_Planilla.xlsx
+                                </div>
+                            </div>
+                            <!-- Puntero del mouse -->
+                            <svg class="w-5 h-5 text-slate-800 transform rotate-[-20deg] mt-6 ml-6 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M7 2v20l5-5 4 9 3-1-4-9 6-1z"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-bold text-title">Subir Archivo Excel</h3>
+                    <p class="text-subtitle text-sm mt-2 text-center">Arrastra y suelta tu planilla aquí, o <span class="text-teal-600 font-semibold hover:underline">haz clic para seleccionar</span></p>
+                    <p class="text-slate-400 text-xs mt-3">Formatos soportados: .xlsx, .xlsm</p>
+                </div>
+
+                <!-- 2. VISTA: PROCESANDO/CARGANDO ANIMACIÓN (cargando y éxito) -->
+                <div id="loadingView" class="hidden w-full flex-col items-center justify-center transition-all duration-500">
+                    <div class="relative w-48 h-48 mb-6 flex items-center justify-center">
+                        <!-- Folder Back -->
+                        <svg class="absolute w-40 h-32 bottom-4" viewBox="0 0 100 80" fill="none">
+                            <path d="M 2,12 C 2,7.5 5.5,4 10,4 L 38,4 C 42.5,4 46,7.5 47,11 L 52,19 L 90,19 C 94.5,19 98,22.5 98,27 L 98,74 C 98,78.5 94.5,82 90,82 L 10,82 C 5.5,82 2,78.5 2,74 Z" fill="#2dd4bf" opacity="0.6"/>
+                        </svg>
+
+                        <!-- Sliding Document -->
+                        <div id="slidingDoc" class="absolute bottom-10 w-24 h-28 transform transition-all duration-300">
+                            <svg class="w-full h-full" viewBox="0 0 100 120" fill="none">
+                                <rect x="2" y="2" width="96" height="116" rx="8" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+                                <path d="M 66,2 L 98,34 L 66,34 Z" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+                                <rect x="15" y="45" width="20" height="10" fill="#e2e8f0" rx="2"/>
+                                <rect x="40" y="45" width="45" height="10" fill="#e2e8f0" rx="2"/>
+                                <rect x="15" y="60" width="20" height="10" fill="#e2e8f0" rx="2"/>
+                                <rect x="40" y="60" width="45" height="10" fill="#e2e8f0" rx="2"/>
+                                <circle cx="50" cy="50" r="14" fill="#0d9488"/>
+                                <text x="50" y="55" fill="white" font-family="sans-serif" font-weight="900" font-size="16" text-anchor="middle">X</text>
+                            </svg>
+                        </div>
+
+                        <!-- Folder Front -->
+                        <svg class="absolute w-40 h-32 bottom-4 drop-shadow-lg" viewBox="0 0 100 80" fill="none">
+                            <path d="M 2,24 C 2,19.5 5.5,16 10,16 L 90,16 C 94.5,16 98,19.5 98,24 L 98,74 C 98,78.5 94.5,82 90,82 L 10,82 C 5.5,82 2,78.5 2,74 Z" fill="url(#folderFrontGrad)"/>
+                            <defs>
+                                <linearGradient id="folderFrontGrad" x1="50" y1="16" x2="50" y2="82" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#0d9488"/>
+                                    <stop offset="1" stop-color="#0f766e"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+
+                        <!-- Badge "Importado" (Éxito) -->
+                        <div id="importedBadge" class="absolute bottom-6 bg-teal-400 text-white text-[10px] font-black tracking-wider uppercase px-2.5 py-1 rounded-full shadow-md border border-teal-300 flex items-center gap-1 scale-0 transition-transform duration-300 z-10">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                            Importado
+                        </div>
+                    </div>
+
+                    <!-- Texto de estado y cargador -->
+                    <div class="flex flex-col items-center justify-center">
+                        <div class="flex items-center gap-3 mb-2">
+                            <!-- Circular Progress Spinner -->
+                            <svg id="loadingSpinner" class="w-5 h-5 text-teal-600 animate-spin-circle" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span id="loadingStatusText" class="text-base font-bold text-slate-700">Procesando planilla...</span>
+                        </div>
+                        <p id="loadingSubText" class="text-slate-400 text-xs text-center font-medium">Normalizando columnas y mapeando meses</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Paso 2: Datos Maestros Formulario -->
+            <div id="step2" class="hidden animate-in fade-in duration-300">
+                <div class="flex items-center justify-between mb-6 border-b border-divider pb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold text-title">Datos Maestros del Trabajador</h3>
+                        <p class="text-sm text-subtitle mt-1">Valide la información extraída automáticamente y complete los campos faltantes. Estos datos se aplicarán a todas las hojas procesadas.</p>
+                    </div>
+                </div>
+
+                <!-- Barra de estado minimalista de los años detectados -->
+                <div id="yearStatusBar" class="mb-6 bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center gap-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Años a Procesar:</span>
+                    <div id="yearStatusContainer" class="flex flex-wrap gap-2"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 form-container p-6 rounded-2xl shadow-lg">
+                    <div><label class="label-field">NOMBRES <span class="text-rose-500">*</span></label><input type="text" id="f_nombres" class="input-field"></div>
+                    <div><label class="label-field">APELLIDOS <span class="text-rose-500">*</span></label><input type="text" id="f_apellidos" class="input-field"></div>
+                    <div><label class="label-field">DNI</label><input type="text" id="f_dni" class="input-field"></div>
+                    <div><label class="label-field">CÓDIGO MODULAR</label><input type="text" id="f_codmod" class="input-field"></div>
+                    
+                    <div class="lg:col-span-2"><label class="label-field">CARGO</label><input type="text" id="f_cargo" class="input-field"></div>
+                    <div><label class="label-field">TIPO CESANTÍA <span class="text-rose-500">*</span></label><input type="text" id="f_cesantia" class="input-field"></div>
+                    <div><label class="label-field">HORAS</label><input type="text" id="f_horas" class="input-field"></div>
+                    
+                    <div><label class="label-field">TIPO PENSIONISTA</label><input type="text" id="f_tipopen_1" class="input-field"></div>
+                    <div><label class="label-field">TIPO PENSIÓN</label><input type="text" id="f_tipopen_2" class="input-field"></div>
+                    <div><label class="label-field">NIVEL MAG.</label><input type="text" id="f_nivel" class="input-field"></div>
+                    <div><label class="label-field">GRUPO OCUP.</label><input type="text" id="f_grupo" class="input-field"></div>
+                    
+                    <div><label class="label-field">TIEMPO SERVICIO</label><input type="text" id="f_tiempo" class="input-field"></div>
+                    <div><label class="label-field">TIPO SEGURO</label><input type="text" id="f_seguro" class="input-field"></div>
+                    <div><label class="label-field">FECHA REGISTRO</label><input type="text" id="f_fecha" class="input-field"></div>
+                    <div><label class="label-field">CUENTA BANCARIA</label><input type="text" id="f_cuenta" class="input-field"></div>
+                    
+                    <div class="lg:col-span-4"><label class="label-field">ESPECIAL</label><input type="text" id="f_especial" class="input-field"></div>
+                </div>
+
+                <div class="mt-8 flex justify-between items-center">
+                    <button onclick="location.reload()" class="btn-secondary font-semibold px-5 py-2.5 rounded-lg transition-all duration-300">← Cancelar y volver</button>
+                    <button id="btnProcess" class="btn-primary px-8 py-2.5 rounded-lg font-bold shadow-md">Ejecutar Consolidación</button>
+                </div>
+            </div>
+
+            <!-- Paso 3: Proceso Completado y Previsualización -->
+            <div id="step3" class="hidden animate-in fade-in duration-300">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 border-b border-divider pb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold text-title">Proceso Completado</h3>
+                        <p class="text-sm text-subtitle mt-1">Se han consolidado todas las hojas activas utilizando los datos maestros.</p>
+                    </div>
+                    <div class="flex gap-3 mt-4 md:mt-0 w-full md:w-auto justify-end">
+                        <button id="btnEditForm" class="btn-secondary px-5 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2">
+                            ← Editar Datos
+                        </button>
+                        <button id="btnDownload" class="btn-primary px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            Descargar Excel Final
+                        </button>
+                    </div>
+                </div>
+                <div class="preview-table-container shadow-inner">
+                    <table class="w-full text-left text-xs font-mono whitespace-nowrap">
+                        <tbody id="previewTableBody" class="divide-y divide-slate-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
