@@ -2,7 +2,7 @@ let globalWorkbook = null;
 let processedDataBlocks = [];
 let visibleSheetsList = [];
 let excludedSheets = new Set();
-
+let currentPreviewTab = "all";
 
 // Cabeceras estrictas del Excel de salida
 const masterHeaders = [
@@ -13,12 +13,48 @@ const masterHeaders = [
 
 const fileInput = document.getElementById('fileInput');
 const btnProcess = document.getElementById('btnProcess');
-const btnDownload = document.getElementById('btnDownload');
+const downloadButtonsContainer = document.getElementById('downloadButtonsContainer');
 const alertBox = document.getElementById('alertBox');
 
 function showStep(step) {
-    [1, 2, 3].forEach(i => document.getElementById('step' + i).classList.add('hidden'));
-    document.getElementById('step' + step).classList.remove('hidden');
+    const curtain = document.getElementById('transitionCurtain');
+    const expedientesBtn = document.getElementById('expedientesBtnContainer');
+    
+    const updateVisibility = (s) => {
+        [1, 2, 3].forEach(i => document.getElementById('step' + i).classList.add('hidden'));
+        document.getElementById('step' + s).classList.remove('hidden');
+        if (expedientesBtn) {
+            if (s === 1) {
+                expedientesBtn.classList.remove('hidden');
+            } else {
+                expedientesBtn.classList.add('hidden');
+            }
+        }
+    };
+
+    if (!curtain) {
+        // Fallback si no existe la cortina
+        updateVisibility(step);
+        return;
+    }
+    
+    // Activar cortina (deslizar para cubrir pantalla)
+    curtain.style.pointerEvents = 'auto';
+    curtain.classList.remove('slide-out');
+    curtain.classList.add('slide-active');
+    
+    setTimeout(() => {
+        // Cambiar paso en el fondo
+        updateVisibility(step);
+        
+        // Deslizar cortina hacia afuera
+        curtain.classList.remove('slide-active');
+        curtain.classList.add('slide-out');
+        
+        setTimeout(() => {
+            curtain.style.pointerEvents = 'none';
+        }, 600);
+    }, 450); // Tiempo justo cuando cubre toda la pantalla
 }
 
 function showError(msg) {
@@ -128,12 +164,54 @@ function updateYearStatusBar() {
     });
 }
 
+// Función para poblar dinámicamente la lista de años de cese a elegir
+function populateCeseYears() {
+    const selectorAnio = document.getElementById('f_cese_anio');
+    if (!selectorAnio) return;
+    selectorAnio.innerHTML = '';
+    
+    const yearsSet = new Set();
+    visibleSheetsList.forEach(sheetName => {
+        let anioActual = sheetName.trim();
+        let matchSheetName = anioActual.match(/\b(19\d{2}|20\d{2})\b/);
+        if (matchSheetName) {
+            yearsSet.add(matchSheetName[1]);
+        } else {
+            const ws = globalWorkbook.Sheets[sheetName];
+            let foundYear = null;
+            const possibleCells = ['B7', 'C7', 'D7', 'B8', 'C8'];
+            for (let cellRef of possibleCells) {
+                if (ws && ws[cellRef] && ws[cellRef].v !== undefined && ws[cellRef].v !== null) {
+                    let cellText = String(ws[cellRef].v);
+                    let match = cellText.match(/\b(19\d{2}|20\d{2})\b/);
+                    if (match) {
+                        foundYear = match[1];
+                        break;
+                    }
+                }
+            }
+            if (foundYear) {
+                yearsSet.add(foundYear);
+            }
+        }
+    });
+    
+    const sortedYears = Array.from(yearsSet).sort((a, b) => Number(a) - Number(b));
+    sortedYears.forEach(yr => {
+        const opt = document.createElement('option');
+        opt.value = yr;
+        opt.textContent = yr;
+        selectorAnio.appendChild(opt);
+    });
+}
+
 // 1. CARGA DE ARCHIVO Y EXTRACCIÓN DINÁMICA MEJORADA
 fileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
     alertBox.classList.add('hidden');
     excludedSheets.clear();
+    currentPreviewTab = "all";
     
     const reader = new FileReader();
     reader.onload = function(evt) {
@@ -241,6 +319,7 @@ fileInput.addEventListener('change', function(e) {
 
                     // Actualizar barra de estado de años detectados
                     updateYearStatusBar();
+                    populateCeseYears();
                     showStep(2);
                 }, 1200); // 1.2 segundos mostrando éxito
             }, 1800); // 1.8 segundos de carga simulada
@@ -297,10 +376,28 @@ btnProcess.addEventListener('click', () => {
         }
     }
 
-    // Validar Tipo Cesantía (es obligatorio)
+    const chkCeseMitad = document.getElementById('chkCeseMitad');
+    const isCese = chkCeseMitad && chkCeseMitad.checked;
+
+    // Validar Tipo Cesantía (es obligatorio siempre)
     if (!cesantiaVal) {
         fCesantia.classList.add('invalid');
-        errors.push("TIPO CESANTÍA");
+        errors.push(isCese ? "TIPO CESANTÍA FINAL (CESANTE)" : "TIPO CESANTÍA");
+    }
+
+    // Validar campos de cese condicional si está activo
+    if (isCese) {
+        const fCeseInicial = document.getElementById('f_cese_inicial');
+        if (!fCeseInicial.value.trim()) {
+            fCeseInicial.classList.add('invalid');
+            errors.push("TIPO CESANTÍA INICIAL (ACTIVO)");
+        }
+        
+        const fCeseAnio = document.getElementById('f_cese_anio');
+        if (!fCeseAnio.value) {
+            fCeseAnio.classList.add('invalid');
+            errors.push("AÑO DEL CESE");
+        }
     }
 
     if (errors.length > 0) {
@@ -485,6 +582,21 @@ btnProcess.addEventListener('click', () => {
         });
     });
 
+    // Limpiar totales de meses que no contienen conceptos con valores numéricos
+    processedDataBlocks.forEach(block => {
+        for (let m = 0; m < 12; m++) {
+            const hasData = block.concepts.some(c => {
+                let val = c.months[m];
+                return val !== undefined && val !== null && val !== "" && typeof val === 'number' && val !== 0;
+            });
+            if (!hasData) {
+                block.totals["T-RENUM"][m] = "";
+                block.totals["T-DSCTO"][m] = "";
+                block.totals["T-LIQUI"][m] = "";
+            }
+        }
+    });
+
     if (processedDataBlocks.length === 0) {
         showError("No se pudieron detectar conceptos válidos (+/-) en el archivo procesado.");
         return;
@@ -499,7 +611,101 @@ function renderPreview() {
     const tbody = document.getElementById('previewTableBody');
     tbody.innerHTML = '';
 
-    processedDataBlocks.forEach(b => {
+    const chkCeseMitad = document.getElementById('chkCeseMitad');
+    const isCese = chkCeseMitad && chkCeseMitad.checked;
+    
+    const filterTabs = document.getElementById('previewFilterTabs');
+
+    // Resetear y poblar contenedor de botones de descarga
+    downloadButtonsContainer.innerHTML = '';
+
+    // 1. Agregar botón para editar/regresar
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'btn-secondary px-5 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2 transition-all duration-300';
+    btnEdit.innerHTML = '← Editar Datos';
+    btnEdit.addEventListener('click', () => showStep(2));
+    downloadButtonsContainer.appendChild(btnEdit);
+
+    if (isCese) {
+        if (filterTabs) filterTabs.classList.remove('hidden');
+
+        const ceseYear = Number(document.getElementById('f_cese_anio').value) || 0;
+        const ceseMonth = Number(document.getElementById('f_cese_mes').value) || 0;
+        const ceseInicial = document.getElementById('f_cese_inicial').value.trim();
+        const ceseFinal = document.getElementById('f_cesantia').value.trim();
+
+        const { activeBlocks, ceasedBlocks } = splitBlocksForPeriods(processedDataBlocks, ceseYear, ceseMonth, ceseInicial, ceseFinal);
+
+        // Renderizar cabecera y bloques del Periodo Activo
+        if (activeBlocks.length > 0 && (currentPreviewTab === "all" || currentPreviewTab === "active")) {
+            tbody.innerHTML += `
+                <tr class="active-header-row">
+                    <td colspan="17" class="px-4 py-3 select-none rounded-t-lg">PERIODO ACTIVO (CESANTÍA INICIAL: ${ceseInicial})</td>
+                </tr>
+            `;
+            renderBlocksToTable(activeBlocks, tbody);
+        }
+
+        // Renderizar espaciador visual si mostramos ambos
+        if (currentPreviewTab === "all" && activeBlocks.length > 0 && ceasedBlocks.length > 0) {
+            tbody.innerHTML += `<tr><td colspan="17" class="h-10 bg-slate-100 border-y border-slate-200"></td></tr>`;
+        }
+
+        // Renderizar cabecera y bloques del Periodo Cesante
+        if (ceasedBlocks.length > 0 && (currentPreviewTab === "all" || currentPreviewTab === "ceased")) {
+            tbody.innerHTML += `
+                <tr class="ceased-header-row">
+                    <td colspan="17" class="px-4 py-3 select-none rounded-t-lg">PERIODO CESANTE (CESANTÍA FINAL: ${ceseFinal})</td>
+                </tr>
+            `;
+            renderBlocksToTable(ceasedBlocks, tbody);
+        }
+
+        // 2. Agregar botón de descarga del Periodo Activo
+        if (currentPreviewTab === "all" || currentPreviewTab === "active") {
+            const btnActivo = document.createElement('button');
+            btnActivo.className = 'bg-teal-700 hover:bg-teal-800 text-white px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2 transition-all duration-300';
+            btnActivo.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Descargar Excel ACTIVO
+            `;
+            btnActivo.addEventListener('click', () => downloadPeriod(true));
+            downloadButtonsContainer.appendChild(btnActivo);
+        }
+
+        // 3. Agregar botón de descarga del Periodo Cesante
+        if (currentPreviewTab === "all" || currentPreviewTab === "ceased") {
+            const btnCesante = document.createElement('button');
+            btnCesante.className = 'bg-[#1B365D] hover:bg-[#152a4a] text-white px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2 transition-all duration-300';
+            btnCesante.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                Descargar Excel CESANTE
+            `;
+            btnCesante.addEventListener('click', () => downloadPeriod(false));
+            downloadButtonsContainer.appendChild(btnCesante);
+        }
+
+    } else {
+        if (filterTabs) filterTabs.classList.add('hidden');
+
+        // Renderizar unificación estándar
+        renderBlocksToTable(processedDataBlocks, tbody);
+
+        // 2. Agregar botón de descarga estándar
+        const btnUnico = document.createElement('button');
+        btnUnico.className = 'btn-primary px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2';
+        btnUnico.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Descargar Excel Final
+        `;
+        btnUnico.addEventListener('click', () => downloadSingleFile());
+        downloadButtonsContainer.appendChild(btnUnico);
+    }
+}
+
+// Renderiza una lista de bloques consolidada al cuerpo de la tabla de previsualización
+function renderBlocksToTable(blocks, tbody) {
+    blocks.forEach(b => {
         let headRow = `<tr class="bg-slate-200 text-slate-700 font-bold">`;
         masterHeaders.forEach(h => headRow += `<td class="px-3 py-2 border-r border-slate-300">${h}</td>`);
         tbody.innerHTML += headRow + `</tr>`;
@@ -529,6 +735,86 @@ function renderPreview() {
         
         tbody.innerHTML += `<tr><td colspan="17" class="h-8 bg-slate-50"></td></tr>`;
     });
+}
+
+// Algoritmo matemático de segmentación del historial laboral
+function splitBlocksForPeriods(blocks, ceseYear, ceseMonth, ceseInicial, ceseFinal) {
+    const activeBlocks = [];
+    const ceasedBlocks = [];
+    
+    blocks.forEach(b => {
+        const blockYear = Number(b.meta[0]) || 0;
+        
+        // 1. Período Activo (Menor o igual al cese)
+        if (blockYear <= ceseYear) {
+            const activeMeta = [...b.meta];
+            activeMeta[4] = ceseInicial; // Tipo Cesantía Inicial
+            
+            const activeTotals = {};
+            ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
+                const original = b.totals[t] || Array(12).fill("");
+                activeTotals[t] = original.map((val, idx) => {
+                    if (blockYear < ceseYear) return val;
+                    return idx <= ceseMonth ? val : "";
+                });
+            });
+            
+            const activeConcepts = [];
+            b.concepts.forEach(c => {
+                const original = c.months || Array(12).fill("");
+                const newMonths = original.map((val, idx) => {
+                    if (blockYear < ceseYear) return val;
+                    return idx <= ceseMonth ? val : "";
+                });
+                
+                if (newMonths.some(v => v !== "")) {
+                    activeConcepts.push({ name: c.name, months: newMonths });
+                }
+            });
+            
+            activeBlocks.push({
+                meta: activeMeta,
+                totals: activeTotals,
+                concepts: activeConcepts
+            });
+        }
+        
+        // 2. Período Cesante (Mayor o igual al cese)
+        if (blockYear >= ceseYear) {
+            const ceasedMeta = [...b.meta];
+            ceasedMeta[4] = ceseFinal; // Tipo Cesantía Final (el que está en el formulario principal)
+            
+            const ceasedTotals = {};
+            ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
+                const original = b.totals[t] || Array(12).fill("");
+                ceasedTotals[t] = original.map((val, idx) => {
+                    if (blockYear > ceseYear) return val;
+                    return idx > ceseMonth ? val : "";
+                });
+            });
+            
+            const ceasedConcepts = [];
+            b.concepts.forEach(c => {
+                const original = c.months || Array(12).fill("");
+                const newMonths = original.map((val, idx) => {
+                    if (blockYear > ceseYear) return val;
+                    return idx > ceseMonth ? val : "";
+                });
+                
+                if (newMonths.some(v => v !== "")) {
+                    ceasedConcepts.push({ name: c.name, months: newMonths });
+                }
+            });
+            
+            ceasedBlocks.push({
+                meta: ceasedMeta,
+                totals: ceasedTotals,
+                concepts: ceasedConcepts
+            });
+        }
+    });
+    
+    return { activeBlocks, ceasedBlocks };
 }
 
 // Helper para generar celdas con estilo para el Excel descargado (usando xlsx-js-style)
@@ -572,62 +858,9 @@ function makeCell(val, isHeader = false) {
     return cellObj;
 }
 
-// 4. EXPORTACIÓN FINAL A EXCEL CON ESTILOS
-btnDownload.addEventListener('click', () => {
-    const wb = XLSX.utils.book_new();
-    const wsData = [];
-    const headersMeses = ["CONCEPTOS", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
-
-    processedDataBlocks.forEach(b => {
-        // Cabeceras maestras principales (Fila 1)
-        wsData.push(masterHeaders.map(h => makeCell(h, true)));
-        
-        // Datos maestros (Fila 2)
-        wsData.push(b.meta.map(v => makeCell(v, false)));
-        
-        // Fila vacía separadora
-        wsData.push([]);
-        
-        // Fila de cabecera MImponible (con primera celda azul marino)
-        const mimponRow = Array(17).fill("").map(() => makeCell("", false));
-        mimponRow[0] = makeCell("MImponible", true);
-        wsData.push(mimponRow);
-        
-        // Totales (T-RENUM, T-DSCTO, T-LIQUI)
-        ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
-            const rowVals = [t, ...(b.totals[t] || Array(12).fill(""))];
-            const rowCells = rowVals.map((val, idx) => {
-                if (idx === 0) return makeCell(val, true); // Etiqueta azul marino
-                return makeCell(val === '' ? '' : Number(val), false);
-            });
-            while(rowCells.length < 17) rowCells.push(makeCell("", false));
-            wsData.push(rowCells);
-        });
-        
-        // Fila de cabecera de meses
-        const monthHeaderRow = headersMeses.map(m => makeCell(m, true));
-        while(monthHeaderRow.length < 17) monthHeaderRow.push(makeCell("", true));
-        wsData.push(monthHeaderRow);
-        
-        // Conceptos individuales
-        b.concepts.forEach(c => {
-            const rowVals = [c.name, ...c.months];
-            const rowCells = rowVals.map((val, idx) => {
-                if (idx === 0) return makeCell(val, false); // Nombre del concepto
-                return makeCell(val === '' ? '' : Number(val), false);
-            });
-            while(rowCells.length < 17) rowCells.push(makeCell("", false));
-            wsData.push(rowCells);
-        });
-        
-        // Filas vacías entre bloques de años
-        wsData.push([]); wsData.push([]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    
-    // Configurar anchos de columna óptimos
-    ws['!cols'] = [
+// Configuración de anchos de columnas del Excel
+function getColWidths() {
+    return [
         { wch: 8 },   // AÑO
         { wch: 12 },  // DNI
         { wch: 25 },  // NOMBRES
@@ -646,30 +879,266 @@ btnDownload.addEventListener('click', () => {
         { wch: 20 },  // CUENTA BANCARIA
         { wch: 30 }   // ESPECIAL
     ];
+}
 
-    XLSX.utils.book_append_sheet(wb, ws, "Consolidado");
+// Generador de filas del bloque adaptadas al periodo (Activo o Cesante)
+function generateSheetData(b, isActivePeriod, ceseYear, ceseMonth, ceseInicial, ceseFinal) {
+    const blockYear = Number(b.meta[0]) || 0;
+    
+    // Clonar metadatos para no alterar el array original
+    const metaCopy = [...b.meta];
+    metaCopy[4] = isActivePeriod ? ceseInicial : ceseFinal;
+    
+    const rows = [];
+    
+    // 1. Cabeceras maestras principales (Fila 1)
+    rows.push(masterHeaders.map(h => makeCell(h, true)));
+    // 2. Datos maestros (Fila 2)
+    rows.push(metaCopy.map(v => makeCell(v, false)));
+    // 3. Fila vacía separadora
+    rows.push([]);
+    
+    // 4. Fila de cabecera MImponible
+    const mimponRow = Array(17).fill("").map(() => makeCell("", false));
+    mimponRow[0] = makeCell("MImponible", true);
+    rows.push(mimponRow);
+    
+    // 5. Totales (T-RENUM, T-DSCTO, T-LIQUI)
+    ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
+        const originalMonths = b.totals[t] || Array(12).fill("");
+        const newMonths = originalMonths.map((val, idx) => {
+            if (blockYear < ceseYear) {
+                return isActivePeriod ? val : "";
+            } else if (blockYear === ceseYear) {
+                if (isActivePeriod) {
+                    return idx <= ceseMonth ? val : "";
+                } else {
+                    return idx > ceseMonth ? val : "";
+                }
+            } else {
+                return isActivePeriod ? "" : val;
+            }
+        });
+        
+        const rowVals = [t, ...newMonths];
+        const rowCells = rowVals.map((val, idx) => {
+            if (idx === 0) return makeCell(val, true);
+            return makeCell(val === '' ? '' : Number(val), false);
+        });
+        while(rowCells.length < 17) rowCells.push(makeCell("", false));
+        rows.push(rowCells);
+    });
+    
+    // 6. Fila de cabecera de meses
+    const headersMeses = ["CONCEPTOS", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+    const monthHeaderRow = headersMeses.map(m => makeCell(m, true));
+    while(monthHeaderRow.length < 17) monthHeaderRow.push(makeCell("", true));
+    rows.push(monthHeaderRow);
+    
+    // 7. Conceptos individuales
+    b.concepts.forEach(c => {
+        const originalMonths = c.months || Array(12).fill("");
+        const newMonths = originalMonths.map((val, idx) => {
+            if (blockYear < ceseYear) {
+                return isActivePeriod ? val : "";
+            } else if (blockYear === ceseYear) {
+                if (isActivePeriod) {
+                    return idx <= ceseMonth ? val : "";
+                } else {
+                    return idx > ceseMonth ? val : "";
+                }
+            } else {
+                return isActivePeriod ? "" : val;
+            }
+        });
+        
+        // Omitir el concepto si quedó completamente en blanco en este periodo
+        const hasValues = newMonths.some(v => v !== "");
+        if (!hasValues) return;
+        
+        const rowVals = [c.name, ...newMonths];
+        const rowCells = rowVals.map((val, idx) => {
+            if (idx === 0) return makeCell(val, false);
+            return makeCell(val === '' ? '' : Number(val), false);
+        });
+        while(rowCells.length < 17) rowCells.push(makeCell("", false));
+        rows.push(rowCells);
+    });
+    
+    return rows;
+}
 
-    // Construir un nombre de archivo dinámico y seguro a partir de Nombres y Apellidos
+// Retorna la raíz limpia del nombre de archivo basado en el formulario
+function getBaseFileName() {
     const nombresInput = document.getElementById('f_nombres').value.trim();
     const apellidosInput = document.getElementById('f_apellidos').value.trim();
     let primerNombre = nombresInput.split(/\s+/)[0] || "";
     let primerApellido = apellidosInput.split(/\s+/)[0] || "";
     
-    let safeFileName = "Planilla_Consolidada";
+    let baseFileName = "Planilla_Consolidada";
     if (primerApellido || primerNombre) {
         let namePart = cleanText(`${primerApellido}_${primerNombre}`).replace(/[^A-Z0-9_]/g, "");
         if (namePart) {
-            safeFileName += `_${namePart}`;
+            baseFileName += `_${namePart}`;
         }
     }
+    return baseFileName;
+}
+
+// Ejecuta la descarga de un período específico (Activo o Cesante)
+function downloadPeriod(isActivePeriod) {
+    const ceseYear = Number(document.getElementById('f_cese_anio').value) || 0;
+    const ceseMonth = Number(document.getElementById('f_cese_mes').value) || 0;
+    const ceseInicial = document.getElementById('f_cese_inicial').value.trim();
+    const ceseFinal = document.getElementById('f_cesantia').value.trim();
     
-    XLSX.writeFile(wb, `${safeFileName}.xlsx`);
-});
+    const baseFileName = getBaseFileName();
+    const { activeBlocks, ceasedBlocks } = splitBlocksForPeriods(processedDataBlocks, ceseYear, ceseMonth, ceseInicial, ceseFinal);
+    const targetBlocks = isActivePeriod ? activeBlocks : ceasedBlocks;
+    const suffix = isActivePeriod ? "ACTIVO" : "CESANTE";
+    
+    const wb = XLSX.utils.book_new();
+    const wsData = [];
+    
+    targetBlocks.forEach(b => {
+        wsData.push(masterHeaders.map(h => makeCell(h, true)));
+        wsData.push(b.meta.map(v => makeCell(v, false)));
+        wsData.push([]);
+        
+        const mimponRow = Array(17).fill("").map(() => makeCell("", false));
+        mimponRow[0] = makeCell("MImponible", true);
+        wsData.push(mimponRow);
+        
+        ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
+            const rowVals = [t, ...(b.totals[t] || Array(12).fill(""))];
+            const rowCells = rowVals.map((val, idx) => {
+                if (idx === 0) return makeCell(val, true);
+                return makeCell(val === '' ? '' : Number(val), false);
+            });
+            while(rowCells.length < 17) rowCells.push(makeCell("", false));
+            wsData.push(rowCells);
+        });
+        
+        const headersMeses = ["CONCEPTOS", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+        const monthHeaderRow = headersMeses.map(m => makeCell(m, true));
+        while(monthHeaderRow.length < 17) monthHeaderRow.push(makeCell("", true));
+        wsData.push(monthHeaderRow);
+        
+        b.concepts.forEach(c => {
+            const rowVals = [c.name, ...c.months];
+            const rowCells = rowVals.map((val, idx) => {
+                if (idx === 0) return makeCell(val, false);
+                return makeCell(val === '' ? '' : Number(val), false);
+            });
+            while(rowCells.length < 17) rowCells.push(makeCell("", false));
+            wsData.push(rowCells);
+        });
+        
+        wsData.push([]); wsData.push([]);
+    });
+    
+    if (wsData.length > 0) {
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = getColWidths();
+        XLSX.utils.book_append_sheet(wb, ws, `Consolidado ${suffix}`);
+        XLSX.writeFile(wb, `${baseFileName}_${suffix}.xlsx`);
+    }
+}
 
-// 5. NAVEGACIÓN DE REGRESO A EDICIÓN
-document.getElementById('btnEditForm').addEventListener('click', () => {
-    showStep(2);
-});
+// Ejecuta la descarga de la planilla unificada completa
+function downloadSingleFile() {
+    const baseFileName = getBaseFileName();
+    const wb = XLSX.utils.book_new();
+    const wsData = [];
+    const headersMeses = ["CONCEPTOS", "ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+    
+    processedDataBlocks.forEach(b => {
+        wsData.push(masterHeaders.map(h => makeCell(h, true)));
+        wsData.push(b.meta.map(v => makeCell(v, false)));
+        wsData.push([]);
+        
+        const mimponRow = Array(17).fill("").map(() => makeCell("", false));
+        mimponRow[0] = makeCell("MImponible", true);
+        wsData.push(mimponRow);
+        
+        ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
+            const rowVals = [t, ...(b.totals[t] || Array(12).fill(""))];
+            const rowCells = rowVals.map((val, idx) => {
+                if (idx === 0) return makeCell(val, true);
+                return makeCell(val === '' ? '' : Number(val), false);
+            });
+            while(rowCells.length < 17) rowCells.push(makeCell("", false));
+            wsData.push(rowCells);
+        });
+        
+        const monthHeaderRow = headersMeses.map(m => makeCell(m, true));
+        while(monthHeaderRow.length < 17) monthHeaderRow.push(makeCell("", true));
+        wsData.push(monthHeaderRow);
+        
+        b.concepts.forEach(c => {
+            const rowVals = [c.name, ...c.months];
+            const rowCells = rowVals.map((val, idx) => {
+                if (idx === 0) return makeCell(val, false);
+                return makeCell(val === '' ? '' : Number(val), false);
+            });
+            while(rowCells.length < 17) rowCells.push(makeCell("", false));
+            wsData.push(rowCells);
+        });
+        
+        wsData.push([]); wsData.push([]);
+    });
+    
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = getColWidths();
+    XLSX.utils.book_append_sheet(wb, ws, "Consolidado");
+    XLSX.writeFile(wb, `${baseFileName}.xlsx`);
+}
 
+// Listener para expandir u ocultar los controles de cese a mitad de periodo
+const chkCeseMitad = document.getElementById('chkCeseMitad');
+if (chkCeseMitad) {
+    chkCeseMitad.addEventListener('change', () => {
+        const ceseConfig = document.getElementById('ceseConfig');
+        if (ceseConfig) {
+            if (chkCeseMitad.checked) {
+                ceseConfig.classList.remove('hidden');
+                ceseConfig.classList.add('grid');
+            } else {
+                ceseConfig.classList.add('hidden');
+                ceseConfig.classList.remove('grid');
+            }
+        }
+    });
+}
 
+// Control de pestañas del filtro de visualización en Paso 3
+function switchPreviewTab(tab) {
+    currentPreviewTab = tab;
+    
+    const tabs = {
+        all: document.getElementById('tabShowAll'),
+        active: document.getElementById('tabShowActive'),
+        ceased: document.getElementById('tabShowCeased')
+    };
+    
+    Object.keys(tabs).forEach(k => {
+        if (!tabs[k]) return;
+        if (k === tab) {
+            tabs[k].className = 'px-4 py-2 text-sm font-bold border-b-2 border-teal-600 text-teal-600 transition-all duration-300';
+        } else {
+            tabs[k].className = 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-all duration-300';
+        }
+    });
+    
+    renderPreview();
+}
+
+const tabShowAll = document.getElementById('tabShowAll');
+if (tabShowAll) tabShowAll.addEventListener('click', () => switchPreviewTab('all'));
+
+const tabShowActive = document.getElementById('tabShowActive');
+if (tabShowActive) tabShowActive.addEventListener('click', () => switchPreviewTab('active'));
+
+const tabShowCeased = document.getElementById('tabShowCeased');
+if (tabShowCeased) tabShowCeased.addEventListener('click', () => switchPreviewTab('ceased'));
 
