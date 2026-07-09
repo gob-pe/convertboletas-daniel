@@ -15,8 +15,7 @@
 
             <div id="alertBox" class="hidden mb-6 p-4 text-sm font-medium"></div>
 
-            <!-- Paso 1: Subida de archivo -->
-            <div id="step1" class="relative max-w-xl mx-auto my-12 rounded-2xl border flex flex-col items-center justify-center p-8 transition-all duration-300 group">
+            <div id="step1" class="relative max-w-xl mx-auto my-12 rounded-2xl border flex flex-col items-center justify-center p-8 transition-all duration-300 group step-animate-in">
                 <!-- El input de archivo invisible que cubre la tarjeta en modo subida -->
                 <input type="file" id="fileInput" accept=".xlsx,.xlsm" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
 
@@ -139,7 +138,7 @@
             </div>
 
             <!-- Paso 2: Datos Maestros Formulario -->
-            <div id="step2" class="hidden animate-in fade-in duration-300">
+            <div id="step2" class="hidden step-animate-in">
                 <div class="flex items-center justify-between mb-6 border-b border-divider pb-4">
                     <div>
                         <h3 class="text-2xl font-bold text-title">Datos Maestros del Trabajador</h3>
@@ -183,7 +182,7 @@
             </div>
 
             <!-- Paso 3: Proceso Completado y Previsualización -->
-            <div id="step3" class="hidden animate-in fade-in duration-300">
+            <div id="step3" class="hidden step-animate-in">
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 border-b border-divider pb-4">
                     <div>
                         <h3 class="text-2xl font-bold text-title">Proceso Completado</h3>

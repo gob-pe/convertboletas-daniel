@@ -240,3 +240,20 @@ input[readonly] {
 .animate-drag-hint {
     animation: drag-hint 4.5s ease-in-out infinite;
 }
+
+/* Animación de entrada suave para los pasos del flujo (fade-in + slide-up) */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.step-animate-in {
+    animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
