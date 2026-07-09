@@ -474,6 +474,17 @@ btnProcess.addEventListener('click', () => {
         return yearA - yearB;
     });
 
+    // Ordenar los conceptos dentro de cada bloque para que todos los '+' vayan antes que los '-'
+    processedDataBlocks.forEach(block => {
+        block.concepts.sort((a, b) => {
+            const aIsPlus = a.name.trim().startsWith('+');
+            const bIsPlus = b.name.trim().startsWith('+');
+            if (aIsPlus && !bIsPlus) return -1;
+            if (!aIsPlus && bIsPlus) return 1;
+            return 0; // Mantiene el orden relativo original para el mismo signo
+        });
+    });
+
     if (processedDataBlocks.length === 0) {
         showError("No se pudieron detectar conceptos válidos (+/-) en el archivo procesado.");
         return;
