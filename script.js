@@ -1,6 +1,8 @@
 let globalWorkbook = null;
 let processedDataBlocks = [];
 let visibleSheetsList = [];
+let excludedSheets = new Set();
+
 
 // Cabeceras estrictas del Excel de salida
 const masterHeaders = [
@@ -88,21 +90,39 @@ function updateYearStatusBar() {
         
         // Crear píldora/cápsula minimalista de estado
         const pill = document.createElement('span');
-        pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold font-mono px-2.5 py-1 rounded-full border transition-all duration-300';
+        pill.className = 'inline-flex items-center gap-1.5 text-xs font-bold font-mono px-2.5 py-1 rounded-full border transition-all duration-300 cursor-pointer select-none';
         
-        if (hasConcepts && hasTotals) {
-            pill.className += ' bg-emerald-50 text-emerald-700 border-emerald-200';
-            pill.innerHTML = `${sheetName} <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7"></path></svg>`;
-            pill.title = 'Hojas estructuradas y de control correctas.';
-        } else if (!hasConcepts) {
-            pill.className += ' bg-rose-50 text-rose-700 border-rose-200';
-            pill.innerHTML = `${sheetName} ⚠`;
-            pill.title = `Hoja vacía o sin conceptos válidos (+/-) en la hoja ${sheetName}.`;
+        // Si la hoja está excluida por el usuario
+        if (excludedSheets.has(sheetName)) {
+            pill.className += ' bg-slate-100 text-slate-400 border-slate-300 border-dashed line-through opacity-60';
+            pill.innerHTML = `${sheetName} ✗`;
+            pill.title = 'Excluido del proceso. Clic para volver a incluir.';
         } else {
-            pill.className += ' bg-amber-50 text-amber-700 border-amber-200';
-            pill.innerHTML = `${sheetName} ⚠`;
-            pill.title = `Faltan filas de totales (T-RENUM, T-DSCTO o T-LIQUI) en la hoja ${sheetName}.`;
+            // Hojas activas
+            if (hasConcepts && hasTotals) {
+                pill.className += ' bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+                pill.innerHTML = `${sheetName} <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5" d="M5 13l4 4L19 7"></path></svg>`;
+                pill.title = 'Activo. Estructura correcta. Clic para excluir del proceso.';
+            } else if (!hasConcepts) {
+                pill.className += ' bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100';
+                pill.innerHTML = `${sheetName} ⚠`;
+                pill.title = `Activo. Hoja vacía o sin conceptos válidos (+/-). Clic para excluir del proceso.`;
+            } else {
+                pill.className += ' bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100';
+                pill.innerHTML = `${sheetName} ⚠`;
+                pill.title = `Activo. Faltan totales de control (T-RENUM/T-DSCTO/T-LIQUI). Clic para excluir del proceso.`;
+            }
         }
+        
+        // Evento click interactivo para alternar inclusión/exclusión
+        pill.addEventListener('click', () => {
+            if (excludedSheets.has(sheetName)) {
+                excludedSheets.delete(sheetName);
+            } else {
+                excludedSheets.add(sheetName);
+            }
+            updateYearStatusBar();
+        });
         
         container.appendChild(pill);
     });
@@ -113,6 +133,7 @@ fileInput.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
     alertBox.classList.add('hidden');
+    excludedSheets.clear();
     
     const reader = new FileReader();
     reader.onload = function(evt) {
@@ -309,7 +330,15 @@ btnProcess.addEventListener('click', () => {
 
     const blocksByYear = {};
 
-    visibleSheetsList.forEach((sheetName) => {
+    // Filtrar únicamente los años/hojas activos elegidos por el usuario
+    const activeSheets = visibleSheetsList.filter(name => !excludedSheets.has(name));
+    
+    if (activeSheets.length === 0) {
+        showError("Debe incluir al menos un año/hoja en la barra de estado para poder ejecutar la consolidación.");
+        return;
+    }
+
+    activeSheets.forEach((sheetName) => {
         const ws = globalWorkbook.Sheets[sheetName];
         
         let anioActual = sheetName.trim();
