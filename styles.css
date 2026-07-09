@@ -113,7 +113,7 @@ input[readonly] {
     background-color: #f8fafc;
     overflow-x: auto; /* IMPORTANTE: Habilita el scroll horizontal */
     overflow-y: auto;
-    max-height: 450px;
+    max-height: 650px; /* Incrementado para una vista más amplia */
     transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
@@ -151,6 +151,27 @@ input[readonly] {
 }
 .preview-table-container tr.bg-slate-800 td {
     color: #ffffff !important;
+}
+
+/* Cabeceras de Periodos de Cese (Legibilidad y diseño premium) */
+.preview-table-container tr.active-header-row {
+    background-color: #0f766e !important; /* Teal elegante */
+}
+.preview-table-container tr.active-header-row td {
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    padding: 0.75rem 1rem !important;
+}
+
+.preview-table-container tr.ceased-header-row {
+    background-color: #1b365d !important; /* Navy Blue corporativo */
+}
+.preview-table-container tr.ceased-header-row td {
+    color: #ffffff !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    padding: 0.75rem 1rem !important;
 }
 
 .preview-table-container td.bg-slate-50 {
@@ -255,5 +276,97 @@ input[readonly] {
 
 .step-animate-in {
     animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Cortina de Transición Cinematográfica */
+#transitionCurtain {
+    transition: transform 0.6s cubic-bezier(0.76, 0, 0.24, 1);
+    will-change: transform;
+}
+#transitionCurtain.slide-active {
+    transform: translate3d(0, 0, 0);
+}
+#transitionCurtain.slide-out {
+    transform: translate3d(-100%, 0, 0);
+}
+
+/* Panel de configuración de cese con entrada suave */
+#ceseConfig {
+    animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Botón Premium Liquid Glass (Glassmorphism con animación de luz en hover) */
+.liquid-glass-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 2.25rem;
+    border-radius: 9999px;
+    background: rgba(15, 23, 42, 0.7) !important; /* Cristal oscuro */
+    backdrop-filter: blur(16px) saturate(120%);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    color: #ffffff !important;
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    box-shadow: 
+        0 8px 32px 0 rgba(0, 0, 0, 0.3), 
+        inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    animation: glassGlow 3s infinite ease-in-out;
+}
+
+/* Efecto de destello de luz diagonal */
+.liquid-glass-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg, 
+        transparent 0%, 
+        rgba(255, 255, 255, 0) 30%, 
+        rgba(255, 255, 255, 0.45) 48%, 
+        rgba(255, 255, 255, 0.45) 52%, 
+        rgba(255, 255, 255, 0) 70%, 
+        transparent 100%
+    );
+    transform: skewX(-25deg);
+    pointer-events: none;
+}
+
+/* Transiciones de hover */
+.liquid-glass-btn:hover {
+    transform: translateY(-3px) scale(1.04);
+    background: rgba(15, 23, 42, 0.8) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 
+        0 15px 45px 0 rgba(13, 148, 136, 0.4), /* Resplandor teal */
+        inset 0 1px 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Disparar animación del destello de luz al pasar el puntero */
+.liquid-glass-btn:hover::after {
+    left: 150%;
+    transition: left 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animación de pulso de sombra ambiental */
+@keyframes glassGlow {
+    0%, 100% {
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    50% {
+        box-shadow: 0 8px 35px 0 rgba(13, 148, 136, 0.15), inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+    }
 }
 

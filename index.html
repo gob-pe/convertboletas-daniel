@@ -11,7 +11,10 @@
 </head>
 <body class="font-sans min-h-screen p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto main-card mt-8 md:mt-12 overflow-hidden">
+    <!-- Cortina de Transición Cinematográfica -->
+    <div id="transitionCurtain" class="fixed inset-0 bg-teal-600 z-50 transform translate-x-full pointer-events-none"></div>
+
+    <div class="max-w-[1400px] mx-auto main-card mt-8 md:mt-12 overflow-hidden">
         <div class="p-6 md:p-8 min-h-[400px]">
 
             <div id="alertBox" class="hidden mb-6 p-4 text-sm font-medium"></div>
@@ -138,6 +141,16 @@
                 </div>
             </div>
 
+            <!-- Botón de Seguimiento de Expedientes -->
+            <div id="expedientesBtnContainer" class="flex justify-center mt-6">
+                <a href="https://script.google.com/macros/s/AKfycbyY3ziIZUc28kemJxwVpUHLtR5n5FL3OLT4h6NNrvmybkq09O7yqkoXj5sUKDymnDHl/exec" 
+                   target="_blank" 
+                   class="liquid-glass-btn select-none">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    SEGUIMIENTO EXPEDIENTES
+                </a>
+            </div>
+
             <!-- Paso 2: Datos Maestros Formulario -->
             <div id="step2" class="hidden step-animate-in">
                 <div class="flex items-center justify-between mb-6 border-b border-divider pb-4">
@@ -172,8 +185,51 @@
                     <div><label class="label-field">TIPO SEGURO</label><input type="text" id="f_seguro" class="input-field"></div>
                     <div><label class="label-field">FECHA REGISTRO</label><input type="text" id="f_fecha" class="input-field"></div>
                     <div><label class="label-field">CUENTA BANCARIA</label><input type="text" id="f_cuenta" class="input-field"></div>
+                    <!-- Configuración de cese a mitad de periodo -->
+                    <div class="lg:col-span-4 border-t border-slate-200 pt-4 mt-2">
+                        <label class="inline-flex items-center cursor-pointer select-none">
+                            <input type="checkbox" id="chkCeseMitad" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-teal-600 relative"></div>
+                            <span class="ml-3 text-sm font-bold text-slate-700">¿Hubo cese a mitad de periodo (Activo a Cesante)?</span>
+                        </label>
+                    </div>
                     
-                    <div class="lg:col-span-4"><label class="label-field">ESPECIAL</label><input type="text" id="f_especial" class="input-field"></div>
+                    <!-- Panel condicional para configurar el cese -->
+                    <div id="ceseConfig" class="hidden lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-teal-50/50 border border-teal-100 rounded-xl p-4 mt-1">
+                        <div>
+                            <label class="label-field">AÑO DEL CESE <span class="text-rose-500">*</span></label>
+                            <select id="f_cese_anio" class="input-field"></select>
+                        </div>
+                        <div>
+                            <label class="label-field">MES DEL CESE <span class="text-rose-500">*</span></label>
+                            <select id="f_cese_mes" class="input-field">
+                                <option value="0">ENERO</option>
+                                <option value="1">FEBRERO</option>
+                                <option value="2">MARZO</option>
+                                <option value="3">ABRIL</option>
+                                <option value="4">MAYO</option>
+                                <option value="5">JUNIO</option>
+                                <option value="6">JULIO</option>
+                                <option value="7">AGOSTO</option>
+                                <option value="8">SEPTIEMBRE</option>
+                                <option value="9">OCTUBRE</option>
+                                <option value="10">NOVIEMBRE</option>
+                                <option value="11">DICIEMBRE</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="label-field">TIPO CESANTÍA INICIAL (ACTIVO) <span class="text-rose-500">*</span></label>
+                            <input type="text" id="f_cese_inicial" class="input-field" placeholder="Ej. ACT/TIT" value="ACT/TIT">
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-4">
+                        <label class="label-field">ESPECIAL</label>
+                        <select id="f_especial" class="input-field">
+                            <option value="NO" selected>NO</option>
+                            <option value="SI">SI</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="mt-8 flex justify-between items-center">
@@ -189,16 +245,15 @@
                         <h3 class="text-2xl font-bold text-title">Proceso Completado</h3>
                         <p class="text-sm text-subtitle mt-1">Se han consolidado todas las hojas activas utilizando los datos maestros.</p>
                     </div>
-                    <div class="flex gap-3 mt-4 md:mt-0 w-full md:w-auto justify-end">
-                        <button id="btnEditForm" class="btn-secondary px-5 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2">
-                            ← Editar Datos
-                        </button>
-                        <button id="btnDownload" class="btn-primary px-6 py-2.5 rounded-lg font-bold shadow-md flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                            Descargar Excel Final
-                        </button>
-                    </div>
+                    <div id="downloadButtonsContainer" class="flex gap-3 mt-4 md:mt-0 w-full md:w-auto justify-end"></div>
                 </div>
+                <!-- Filtro de Visualización (Pestañas) -->
+                <div id="previewFilterTabs" class="hidden mb-6 flex gap-2 border-b border-slate-200 pb-px">
+                    <button id="tabShowAll" class="px-4 py-2 text-sm font-bold border-b-2 border-teal-600 text-teal-600 transition-all duration-300">Mostrar Todo</button>
+                    <button id="tabShowActive" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-all duration-300">Periodo Activo</button>
+                    <button id="tabShowCeased" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 transition-all duration-300">Periodo Cesante</button>
+                </div>
+
                 <div class="preview-table-container shadow-inner">
                     <table class="w-full text-left text-xs font-mono whitespace-nowrap">
                         <tbody id="previewTableBody" class="divide-y divide-slate-200"></tbody>
