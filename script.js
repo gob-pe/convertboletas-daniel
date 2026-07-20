@@ -229,7 +229,10 @@ fileInput.addEventListener('change', function(e) {
             const firstWs = globalWorkbook.Sheets[visibleSheetsList[0]];
             const rows = XLSX.utils.sheet_to_json(firstWs, { header: 1, defval: "" });
             
-            let ext = { nombres: "", apellidos: "", codmod: "", horas: "", cargo: "", cesantia: "", dni: "" };
+            let ext = { 
+                nombres: "", apellidos: "", codmod: "", horas: "", cargo: "", cesantia: "", dni: "",
+                tipopen1: "", tipopen2: "", nivel: "", grupo: "", tiempo: "", seguro: "", fecha: "", cuenta: ""
+            };
 
             // Escaneo de las primeras 15 filas
             for(let i = 0; i < Math.min(15, rows.length); i++) {
@@ -261,6 +264,22 @@ fileInput.addEventListener('change', function(e) {
                         ext.cesantia = findNextValue(row, j);
                     } else if (cell === "DNI") {
                         ext.dni = findNextValue(row, j);
+                    } else if (cell === "TIPO PENSIONISTA" || cell === "TIPO DE PENSIONISTA" || cell === "PENSIONISTA") {
+                        ext.tipopen1 = findNextValue(row, j);
+                    } else if (cell === "TIPO PENSION" || cell === "TIPO DE PENSION" || cell === "PENSION") {
+                        ext.tipopen2 = findNextValue(row, j);
+                    } else if (cell === "CUENTA BANCARIA" || cell === "CUENTA" || cell === "CTA BANCARIA" || cell === "NRO CUENTA" || cell === "NRO DE CUENTA") {
+                        ext.cuenta = findNextValue(row, j);
+                    } else if (cell === "NIVEL MAG" || cell === "NIVEL" || cell === "NIVEL MAGISTERIAL") {
+                        ext.nivel = findNextValue(row, j);
+                    } else if (cell === "GRUPO OCUP" || cell === "GRUPO OCUPACIONAL" || cell === "GRUPO") {
+                        ext.grupo = findNextValue(row, j);
+                    } else if (cell === "TIEMPO SERVICIO" || cell === "TIEMPO DE SERVICIO" || cell === "TIEMPO") {
+                        ext.tiempo = findNextValue(row, j);
+                    } else if (cell === "TIPO SEGURO" || cell === "SEGURO") {
+                        ext.seguro = findNextValue(row, j);
+                    } else if (cell === "FECHA REGISTRO" || cell === "FECHA REG" || cell === "FECHA") {
+                        ext.fecha = findNextValue(row, j);
                     }
                 }
             }
@@ -271,7 +290,15 @@ fileInput.addEventListener('change', function(e) {
             document.getElementById('f_horas').value = ext.horas;
             document.getElementById('f_cargo').value = ext.cargo;
             document.getElementById('f_cesantia').value = ext.cesantia;
-            document.getElementById('f_dni').value = ext.dni; 
+            document.getElementById('f_dni').value = ext.dni;
+            if (ext.tipopen1) document.getElementById('f_tipopen_1').value = ext.tipopen1;
+            if (ext.tipopen2) document.getElementById('f_tipopen_2').value = ext.tipopen2;
+            if (ext.cuenta) document.getElementById('f_cuenta').value = ext.cuenta;
+            if (ext.nivel) document.getElementById('f_nivel').value = ext.nivel;
+            if (ext.grupo) document.getElementById('f_grupo').value = ext.grupo;
+            if (ext.tiempo) document.getElementById('f_tiempo').value = ext.tiempo;
+            if (ext.seguro) document.getElementById('f_seguro').value = ext.seguro;
+            if (ext.fecha) document.getElementById('f_fecha').value = ext.fecha;
 
             // Secuencia de animación de carga premium
             const uploadView = document.getElementById('uploadView');
@@ -330,6 +357,28 @@ fileInput.addEventListener('change', function(e) {
     };
     reader.readAsBinaryString(file);
 });
+
+// Función auxiliar para controlar el estado de carga del botón Ejecutar Consolidación
+function setBtnProcessLoading(isLoading) {
+    const btn = document.getElementById('btnProcess');
+    const spinner = document.getElementById('btnProcessSpinner');
+    const text = document.getElementById('btnProcessText');
+    if (!btn) return;
+    
+    if (isLoading) {
+        btn.disabled = true;
+        btn.style.opacity = '0.75';
+        btn.style.pointerEvents = 'none';
+        if (spinner) spinner.classList.remove('hidden');
+        if (text) text.textContent = "Procesando consolidación...";
+    } else {
+        btn.disabled = false;
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+        if (spinner) spinner.classList.add('hidden');
+        if (text) text.textContent = "Ejecutar Consolidación";
+    }
+}
 
 // 2. PROCESAMIENTO CON CONTROL DE DECIMALES
 btnProcess.addEventListener('click', () => {
@@ -406,210 +455,225 @@ btnProcess.addEventListener('click', () => {
         return;
     }
 
-    const md = {
-        nombres: nombresVal,
-        apellidos: apellidosVal,
-        dni: dniVal,
-        codmod: document.getElementById('f_codmod').value.trim(),
-        cargo: document.getElementById('f_cargo').value.trim(),
-        cesantia: cesantiaVal,
-        horas: document.getElementById('f_horas').value.trim(),
-        tipopen1: document.getElementById('f_tipopen_1').value.trim(),
-        tipopen2: document.getElementById('f_tipopen_2').value.trim(),
-        nivel: document.getElementById('f_nivel').value.trim(),
-        grupo: document.getElementById('f_grupo').value.trim(),
-        tiempo: document.getElementById('f_tiempo').value.trim(),
-        seguro: document.getElementById('f_seguro').value.trim(),
-        fecha: document.getElementById('f_fecha').value.trim(),
-        cuenta: document.getElementById('f_cuenta').value.trim(),
-        especial: document.getElementById('f_especial').value.trim()
-    };
+    // Activar animación de carga síncrona en el botón antes de iniciar el procesamiento pesado
+    setBtnProcessLoading(true);
 
-    const blocksByYear = {};
+    setTimeout(() => {
+        try {
+            const md = {
+                nombres: nombresVal,
+                apellidos: apellidosVal,
+                dni: dniVal,
+                codmod: document.getElementById('f_codmod').value.trim(),
+                cargo: document.getElementById('f_cargo').value.trim(),
+                cesantia: cesantiaVal,
+                horas: document.getElementById('f_horas').value.trim(),
+                tipopen1: document.getElementById('f_tipopen_1').value.trim(),
+                tipopen2: document.getElementById('f_tipopen_2').value.trim(),
+                nivel: document.getElementById('f_nivel').value.trim(),
+                grupo: document.getElementById('f_grupo').value.trim(),
+                tiempo: document.getElementById('f_tiempo').value.trim(),
+                seguro: document.getElementById('f_seguro').value.trim(),
+                fecha: document.getElementById('f_fecha').value.trim(),
+                cuenta: document.getElementById('f_cuenta').value.trim(),
+                especial: document.getElementById('f_especial').value.trim()
+            };
 
-    // Filtrar únicamente los años/hojas activos elegidos por el usuario
-    const activeSheets = visibleSheetsList.filter(name => !excludedSheets.has(name));
-    
-    if (activeSheets.length === 0) {
-        showError("Debe incluir al menos un año/hoja en la barra de estado para poder ejecutar la consolidación.");
-        return;
-    }
+            const blocksByYear = {};
 
-    activeSheets.forEach((sheetName) => {
-        const ws = globalWorkbook.Sheets[sheetName];
-        
-        let anioActual = sheetName.trim();
-        let matchSheetName = anioActual.match(/\b(19\d{2}|20\d{2})\b/);
-        if (matchSheetName) {
-            anioActual = matchSheetName[1];
-        } else {
-            // Si el nombre de la hoja no contiene un año, buscamos en celdas probables de cabecera
-            let foundYear = null;
-            const possibleCells = ['B7', 'C7', 'D7', 'B8', 'C8'];
-            for (let cellRef of possibleCells) {
-                if (ws[cellRef] && ws[cellRef].v !== undefined && ws[cellRef].v !== null) {
-                    let cellText = String(ws[cellRef].v);
-                    let match = cellText.match(/\b(19\d{2}|20\d{2})\b/);
-                    if (match) {
-                        foundYear = match[1];
-                        break;
-                    }
-                }
-            }
-            if (foundYear) {
-                anioActual = foundYear;
-            }
-        }
-
-        let rowMeta = [
-            anioActual, md.dni, md.nombres, md.apellidos, md.cesantia, md.codmod, md.cargo, 
-            md.tipopen1, md.tipopen2, md.nivel, md.grupo, md.horas, 
-            md.tiempo, md.seguro, md.fecha, md.cuenta, md.especial
-        ];
-
-        // Inicializamos el bloque temporal con arrays vacíos de 12 meses para los totales
-        let tempBlock = { 
-            meta: rowMeta, 
-            totals: { "T-RENUM": Array(12).fill(""), "T-DSCTO": Array(12).fill(""), "T-LIQUI": Array(12).fill("") }, 
-            concepts: [] 
-        };
-
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
-        
-        for (let i = 0; i < rows.length; i++) {
-            let row = rows[i];
-            if (!row || row.length === 0) continue;
-
-            let cIdx = -1;
-            let conceptName = "";
-            let isTotal = false;
-
-            for (let j = 0; j <= 5; j++) {
-                let val = String(row[j] || '').trim();
-                let upper = val.toUpperCase();
-                if (val.startsWith('+') || val.startsWith('-') || ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].includes(upper)) {
-                    cIdx = j; conceptName = upper;
-                    isTotal = ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].includes(upper);
-                    break;
-                }
+            // Filtrar únicamente los años/hojas activos elegidos por el usuario
+            const activeSheets = visibleSheetsList.filter(name => !excludedSheets.has(name));
+            
+            if (activeSheets.length === 0) {
+                showError("Debe incluir al menos un año/hoja en la barra de estado para poder ejecutar la consolidación.");
+                return;
             }
 
-            if (cIdx !== -1) {
-                let months = [];
-                for (let m = cIdx + 1; m <= cIdx + 12; m++) {
-                    let val = row[m];
-                    if (val === undefined || val === null || String(val).trim() === '.-' || String(val).trim() === '') {
-                        months.push("");
-                    } else {
-                        let numVal = Number(val);
-                        if (Number.isNaN(numVal)) {
-                            months.push(val);
-                        } else {
-                            months.push(Number(numVal.toFixed(2)));
-                        }
-                    }
-                }
-
-                if (isTotal) { 
-                    tempBlock.totals[conceptName] = months; 
-                } else { 
-                    tempBlock.concepts.push({ name: row[cIdx], months: months }); 
-                }
-            }
-        }
-
-        // Si la hoja contiene al menos un total o concepto procesable, la unificamos por año
-        const hasData = tempBlock.concepts.length > 0 || tempBlock.totals["T-RENUM"].some(v => v !== "");
-        if (!hasData) return;
-
-        // Fusión o inicialización por año (anioActual)
-        if (!blocksByYear[anioActual]) {
-            blocksByYear[anioActual] = tempBlock;
-        } else {
-            // 1. Fusionar totales mes por mes
-            ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
-                for (let m = 0; m < 12; m++) {
-                    let valA = blocksByYear[anioActual].totals[t][m];
-                    let valB = tempBlock.totals[t][m];
-                    
-                    if (valA !== "" && valB !== "") {
-                        blocksByYear[anioActual].totals[t][m] = Number((Number(valA) + Number(valB)).toFixed(2));
-                    } else if (valB !== "") {
-                        blocksByYear[anioActual].totals[t][m] = valB;
-                    }
-                }
-            });
-
-            // 2. Fusionar conceptos individuales
-            tempBlock.concepts.forEach(newConcept => {
-                let existingConcept = blocksByYear[anioActual].concepts.find(
-                    c => cleanText(c.name) === cleanText(newConcept.name)
-                );
+            activeSheets.forEach((sheetName) => {
+                const ws = globalWorkbook.Sheets[sheetName];
                 
-                if (existingConcept) {
-                    for (let m = 0; m < 12; m++) {
-                        let valA = existingConcept.months[m];
-                        let valB = newConcept.months[m];
-                        
-                        if (valA !== "" && valB !== "") {
-                            existingConcept.months[m] = Number((Number(valA) + Number(valB)).toFixed(2));
-                        } else if (valB !== "") {
-                            existingConcept.months[m] = valB;
+                let anioActual = sheetName.trim();
+                let matchSheetName = anioActual.match(/\b(19\d{2}|20\d{2})\b/);
+                if (matchSheetName) {
+                    anioActual = matchSheetName[1];
+                } else {
+                    // Si el nombre de la hoja no contiene un año, buscamos en celdas probables de cabecera
+                    let foundYear = null;
+                    const possibleCells = ['B7', 'C7', 'D7', 'B8', 'C8'];
+                    for (let cellRef of possibleCells) {
+                        if (ws[cellRef] && ws[cellRef].v !== undefined && ws[cellRef].v !== null) {
+                            let cellText = String(ws[cellRef].v);
+                            let match = cellText.match(/\b(19\d{2}|20\d{2})\b/);
+                            if (match) {
+                                foundYear = match[1];
+                                break;
+                            }
                         }
                     }
+                    if (foundYear) {
+                        anioActual = foundYear;
+                    }
+                }
+
+                let rowMeta = [
+                    anioActual, md.dni, md.nombres, md.apellidos, md.cesantia, md.codmod, md.cargo, 
+                    md.tipopen1, md.tipopen2, md.nivel, md.grupo, md.horas, 
+                    md.tiempo, md.seguro, md.fecha, md.cuenta, md.especial
+                ];
+
+                // Inicializamos el bloque temporal con arrays vacíos de 12 meses para los totales
+                let tempBlock = { 
+                    meta: rowMeta, 
+                    totals: { "T-RENUM": Array(12).fill(""), "T-DSCTO": Array(12).fill(""), "T-LIQUI": Array(12).fill("") }, 
+                    concepts: [] 
+                };
+
+                const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+                
+                for (let i = 0; i < rows.length; i++) {
+                    let row = rows[i];
+                    if (!row || row.length === 0) continue;
+
+                    let cIdx = -1;
+                    let conceptName = "";
+                    let isTotal = false;
+
+                    for (let j = 0; j <= 5; j++) {
+                        let val = String(row[j] || '').trim();
+                        let upper = val.toUpperCase();
+                        if (val.startsWith('+') || val.startsWith('-') || ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].includes(upper)) {
+                            cIdx = j; conceptName = upper;
+                            isTotal = ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].includes(upper);
+                            break;
+                        }
+                    }
+
+                    if (cIdx !== -1) {
+                        let months = [];
+                        for (let m = cIdx + 1; m <= cIdx + 12; m++) {
+                            let val = row[m];
+                            if (val === undefined || val === null || String(val).trim() === '.-' || String(val).trim() === '') {
+                                months.push("");
+                            } else {
+                                let numVal = Number(val);
+                                if (Number.isNaN(numVal)) {
+                                    months.push(val);
+                                } else {
+                                    months.push(Number(numVal.toFixed(2)));
+                                }
+                            }
+                        }
+
+                        if (isTotal) { 
+                            tempBlock.totals[conceptName] = months; 
+                        } else { 
+                            tempBlock.concepts.push({ name: row[cIdx], months: months }); 
+                        }
+                    }
+                }
+
+                // Si la hoja contiene al menos un total o concepto procesable, la unificamos por año
+                const hasData = tempBlock.concepts.length > 0 || tempBlock.totals["T-RENUM"].some(v => v !== "");
+                if (!hasData) return;
+
+                // Fusión o inicialización por año (anioActual)
+                if (!blocksByYear[anioActual]) {
+                    blocksByYear[anioActual] = tempBlock;
                 } else {
-                    blocksByYear[anioActual].concepts.push(newConcept);
+                    // 1. Fusionar totales mes por mes
+                    ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
+                        for (let m = 0; m < 12; m++) {
+                            let valA = blocksByYear[anioActual].totals[t][m];
+                            let valB = tempBlock.totals[t][m];
+                            
+                            if (valA !== "" && valB !== "") {
+                                blocksByYear[anioActual].totals[t][m] = Number((Number(valA) + Number(valB)).toFixed(2));
+                            } else if (valB !== "") {
+                                blocksByYear[anioActual].totals[t][m] = valB;
+                            }
+                        }
+                    });
+
+                    // 2. Fusionar conceptos individuales
+                    tempBlock.concepts.forEach(newConcept => {
+                        let existingConcept = blocksByYear[anioActual].concepts.find(
+                            c => cleanText(c.name) === cleanText(newConcept.name)
+                        );
+                        
+                        if (existingConcept) {
+                            for (let m = 0; m < 12; m++) {
+                                let valA = existingConcept.months[m];
+                                let valB = newConcept.months[m];
+                                
+                                if (valA !== "" && valB !== "") {
+                                    existingConcept.months[m] = Number((Number(valA) + Number(valB)).toFixed(2));
+                                } else if (valB !== "") {
+                                    existingConcept.months[m] = valB;
+                                }
+                            }
+                        } else {
+                            blocksByYear[anioActual].concepts.push(newConcept);
+                        }
+                    });
                 }
             });
-        }
-    });
 
-    // Convertir el objeto indexado por años de vuelta a un array ordenado cronológicamente
-    processedDataBlocks = Object.values(blocksByYear).sort((a, b) => {
-        let yearA = Number(a.meta[0]) || 0;
-        let yearB = Number(b.meta[0]) || 0;
-        return yearA - yearB;
-    });
-
-    // Ordenar los conceptos dentro de cada bloque para que todos los '+' vayan antes que los '-'
-    processedDataBlocks.forEach(block => {
-        block.concepts.sort((a, b) => {
-            const aIsPlus = a.name.trim().startsWith('+');
-            const bIsPlus = b.name.trim().startsWith('+');
-            if (aIsPlus && !bIsPlus) return -1;
-            if (!aIsPlus && bIsPlus) return 1;
-            return 0; // Mantiene el orden relativo original para el mismo signo
-        });
-    });
-
-    // Limpiar totales de meses que no contienen conceptos con valores numéricos
-    processedDataBlocks.forEach(block => {
-        for (let m = 0; m < 12; m++) {
-            const hasData = block.concepts.some(c => {
-                let val = c.months[m];
-                return val !== undefined && val !== null && val !== "" && typeof val === 'number' && val !== 0;
+            // Convertir el objeto indexado por años de vuelta a un array ordenado cronológicamente
+            processedDataBlocks = Object.values(blocksByYear).sort((a, b) => {
+                let yearA = Number(a.meta[0]) || 0;
+                let yearB = Number(b.meta[0]) || 0;
+                return yearA - yearB;
             });
-            if (!hasData) {
-                block.totals["T-RENUM"][m] = "";
-                block.totals["T-DSCTO"][m] = "";
-                block.totals["T-LIQUI"][m] = "";
-            }
-        }
-    });
 
-    if (processedDataBlocks.length === 0) {
-        showError("No se pudieron detectar conceptos válidos (+/-) en el archivo procesado.");
-        return;
-    }
-    
-    renderPreview();
-    showStep(3);
+            // Ordenar los conceptos dentro de cada bloque para que todos los '+' vayan antes que los '-'
+            processedDataBlocks.forEach(block => {
+                block.concepts.sort((a, b) => {
+                    const aIsPlus = a.name.trim().startsWith('+');
+                    const bIsPlus = b.name.trim().startsWith('+');
+                    if (aIsPlus && !bIsPlus) return -1;
+                    if (!aIsPlus && bIsPlus) return 1;
+                    return 0; // Mantiene el orden relativo original para el mismo signo
+                });
+            });
+
+            // Limpiar totales de meses que no contienen conceptos con valores numéricos
+            processedDataBlocks.forEach(block => {
+                for (let m = 0; m < 12; m++) {
+                    const hasData = block.concepts.some(c => {
+                        let val = c.months[m];
+                        return val !== undefined && val !== null && val !== "" && typeof val === 'number' && val !== 0;
+                    });
+                    if (!hasData) {
+                        block.totals["T-RENUM"][m] = "";
+                        block.totals["T-DSCTO"][m] = "";
+                        block.totals["T-LIQUI"][m] = "";
+                    }
+                }
+            });
+
+            if (processedDataBlocks.length === 0) {
+                showError("No se pudieron detectar conceptos válidos (+/-) en el archivo procesado.");
+                return;
+            }
+            
+            renderPreview();
+            showStep(3);
+        } catch (err) {
+            showError("Ocurrió un error inesperado al procesar la planilla.");
+            console.error(err);
+        } finally {
+            setBtnProcessLoading(false);
+        }
+    }, 40);
 });
 
-// 3. RENDERIZADO VISUAL DEL RESULTADO
+// 3. RENDERIZADO VISUAL DEL RESULTADO (OPTIMIZADO EN 1 SOLA OPERACIÓN DOM)
 function renderPreview() {
     const tbody = document.getElementById('previewTableBody');
-    tbody.innerHTML = '';
+    const tableContainer = document.querySelector('.preview-table-container');
+    if (tableContainer) {
+        tableContainer.style.opacity = '0.4';
+    }
 
     const chkCeseMitad = document.getElementById('chkCeseMitad');
     const isCese = chkCeseMitad && chkCeseMitad.checked;
@@ -626,6 +690,8 @@ function renderPreview() {
     btnEdit.addEventListener('click', () => showStep(2));
     downloadButtonsContainer.appendChild(btnEdit);
 
+    let htmlBuffer = '';
+
     if (isCese) {
         if (filterTabs) filterTabs.classList.remove('hidden');
 
@@ -638,27 +704,27 @@ function renderPreview() {
 
         // Renderizar cabecera y bloques del Periodo Activo
         if (activeBlocks.length > 0 && (currentPreviewTab === "all" || currentPreviewTab === "active")) {
-            tbody.innerHTML += `
+            htmlBuffer += `
                 <tr class="active-header-row">
                     <td colspan="17" class="px-4 py-3 select-none rounded-t-lg">PERIODO ACTIVO (CESANTÍA INICIAL: ${ceseInicial})</td>
                 </tr>
             `;
-            renderBlocksToTable(activeBlocks, tbody);
+            htmlBuffer += renderBlocksToTable(activeBlocks);
         }
 
         // Renderizar espaciador visual si mostramos ambos
         if (currentPreviewTab === "all" && activeBlocks.length > 0 && ceasedBlocks.length > 0) {
-            tbody.innerHTML += `<tr><td colspan="17" class="h-10 bg-slate-100 border-y border-slate-200"></td></tr>`;
+            htmlBuffer += `<tr><td colspan="17" class="h-10 bg-slate-100 border-y border-slate-200"></td></tr>`;
         }
 
         // Renderizar cabecera y bloques del Periodo Cesante
         if (ceasedBlocks.length > 0 && (currentPreviewTab === "all" || currentPreviewTab === "ceased")) {
-            tbody.innerHTML += `
+            htmlBuffer += `
                 <tr class="ceased-header-row">
                     <td colspan="17" class="px-4 py-3 select-none rounded-t-lg">PERIODO CESANTE (CESANTÍA FINAL: ${ceseFinal})</td>
                 </tr>
             `;
-            renderBlocksToTable(ceasedBlocks, tbody);
+            htmlBuffer += renderBlocksToTable(ceasedBlocks);
         }
 
         // 2. Agregar botón de descarga del Periodo Activo
@@ -689,7 +755,7 @@ function renderPreview() {
         if (filterTabs) filterTabs.classList.add('hidden');
 
         // Renderizar unificación estándar
-        renderBlocksToTable(processedDataBlocks, tbody);
+        htmlBuffer += renderBlocksToTable(processedDataBlocks);
 
         // 2. Agregar botón de descarga estándar
         const btnUnico = document.createElement('button');
@@ -701,40 +767,51 @@ function renderPreview() {
         btnUnico.addEventListener('click', () => downloadSingleFile());
         downloadButtonsContainer.appendChild(btnUnico);
     }
+
+    // Única inyección al DOM para máxima velocidad e instantaneidad
+    tbody.innerHTML = htmlBuffer;
+
+    if (tableContainer) {
+        requestAnimationFrame(() => {
+            tableContainer.style.opacity = '1';
+        });
+    }
 }
 
-// Renderiza una lista de bloques consolidada al cuerpo de la tabla de previsualización
-function renderBlocksToTable(blocks, tbody) {
+// Renderiza una lista de bloques consolidada a una cadena HTML en memoria
+function renderBlocksToTable(blocks) {
+    let html = '';
     blocks.forEach(b => {
         let headRow = `<tr class="bg-slate-200 text-slate-700 font-bold">`;
         masterHeaders.forEach(h => headRow += `<td class="px-3 py-2 border-r border-slate-300">${h}</td>`);
-        tbody.innerHTML += headRow + `</tr>`;
+        html += headRow + `</tr>`;
 
         let valRow = `<tr class="bg-white">`;
         b.meta.forEach(v => valRow += `<td class="px-3 py-2 border-r border-slate-200">${v}</td>`);
-        tbody.innerHTML += valRow + `</tr><tr><td colspan="17" class="h-4 bg-slate-50"></td></tr>`;
+        html += valRow + `</tr><tr><td colspan="17" class="h-4 bg-slate-50"></td></tr>`;
         
-        tbody.innerHTML += `<tr class="font-bold text-teal-800 bg-teal-50"><td class="px-3 py-2 border-r border-teal-200">MImponible</td><td colspan="16"></td></tr>`;
+        html += `<tr class="font-bold text-teal-800 bg-teal-50"><td class="px-3 py-2 border-r border-teal-200">MImponible</td><td colspan="16"></td></tr>`;
         ['T-RENUM', 'T-DSCTO', 'T-LIQUI'].forEach(t => {
             let rowHtml = `<td class="px-3 py-2 border-r border-slate-200 font-bold">${t}</td>`;
             (b.totals[t] || Array(12).fill("")).forEach(val => {
                 rowHtml += `<td class="px-3 py-2 border-r border-slate-200 text-right">${val === '' ? '-' : val}</td>`;
             });
-            tbody.innerHTML += `<tr class="bg-white">${rowHtml}<td colspan="4"></td></tr>`;
+            html += `<tr class="bg-white">${rowHtml}<td colspan="4"></td></tr>`;
         });
         
-        tbody.innerHTML += `<tr class="bg-slate-800 text-white font-bold"><td class="px-3 py-2">CONCEPTOS</td><td class="px-3 py-2 text-center border-l border-slate-600">ENE</td><td class="px-3 py-2 text-center border-l border-slate-600">FEB</td><td class="px-3 py-2 text-center border-l border-slate-600">MAR</td><td class="px-3 py-2 text-center border-l border-slate-600">ABR</td><td class="px-3 py-2 text-center border-l border-slate-600">MAY</td><td class="px-3 py-2 text-center border-l border-slate-600">JUN</td><td class="px-3 py-2 text-center border-l border-slate-600">JUL</td><td class="px-3 py-2 text-center border-l border-slate-600">AGO</td><td class="px-3 py-2 text-center border-l border-slate-600">SEP</td><td class="px-3 py-2 text-center border-l border-slate-600">OCT</td><td class="px-3 py-2 text-center border-l border-slate-600">NOV</td><td class="px-3 py-2 text-center border-l border-slate-600">DIC</td><td colspan="4"></td></tr>`;
+        html += `<tr class="bg-slate-800 text-white font-bold"><td class="px-3 py-2">CONCEPTOS</td><td class="px-3 py-2 text-center border-l border-slate-600">ENE</td><td class="px-3 py-2 text-center border-l border-slate-600">FEB</td><td class="px-3 py-2 text-center border-l border-slate-600">MAR</td><td class="px-3 py-2 text-center border-l border-slate-600">ABR</td><td class="px-3 py-2 text-center border-l border-slate-600">MAY</td><td class="px-3 py-2 text-center border-l border-slate-600">JUN</td><td class="px-3 py-2 text-center border-l border-slate-600">JUL</td><td class="px-3 py-2 text-center border-l border-slate-600">AGO</td><td class="px-3 py-2 text-center border-l border-slate-600">SEP</td><td class="px-3 py-2 text-center border-l border-slate-600">OCT</td><td class="px-3 py-2 text-center border-l border-slate-600">NOV</td><td class="px-3 py-2 text-center border-l border-slate-600">DIC</td><td colspan="4"></td></tr>`;
         
         b.concepts.forEach(c => {
             let rowHtml = `<td class="px-3 py-2 border-r border-slate-200">${c.name}</td>`;
             c.months.forEach(val => {
                 rowHtml += `<td class="px-3 py-2 border-r border-slate-200 text-right ${val === '' ? 'text-slate-400' : ''}">${val === '' ? '-' : val}</td>`;
             });
-            tbody.innerHTML += `<tr class="bg-white hover:bg-slate-50">${rowHtml}<td colspan="4"></td></tr>`;
+            html += `<tr class="bg-white hover:bg-slate-50">${rowHtml}<td colspan="4"></td></tr>`;
         });
         
-        tbody.innerHTML += `<tr><td colspan="17" class="h-8 bg-slate-50"></td></tr>`;
+        html += `<tr><td colspan="17" class="h-8 bg-slate-50"></td></tr>`;
     });
+    return html;
 }
 
 // Algoritmo matemático de segmentación del historial laboral
